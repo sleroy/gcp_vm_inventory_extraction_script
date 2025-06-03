@@ -1,3 +1,3 @@
-# No external dependencies required
-# The script uses only Python standard library modules
-# Google Cloud SDK must be installed separately
+pandas>=1.0.0
+streamlit>=1.0.0
+xlsxwriter>=1.3.0

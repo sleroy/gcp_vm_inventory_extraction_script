@@ -1,5 +1,16 @@
 # Change Log
 
+## [0.3.0] - 2025-06-03
+
+### Streamlit UI Feature
+
+- Added web-based user interface using Streamlit
+- Restructured project as a proper Python package
+- Added support for authentication via service account key
+- Implemented filtering options in the UI
+- Added export functionality for both CSV and Excel formats
+- Created a modular design with separate components for core functionality, CLI, and UI
+
 ## [0.2.0] - 2025-06-03
 
 ### API Permission Check Feature

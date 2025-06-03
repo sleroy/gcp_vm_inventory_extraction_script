@@ -19,9 +19,14 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
+    install_requires=[
+        "pandas>=1.0.0",
+        "streamlit>=1.0.0",
+        "xlsxwriter>=1.3.0",
+    ],
     entry_points={
         "console_scripts": [
-            "gcp-vm-inventory=gcp_vm_inventory:main",
+            "gcp-vm-inventory=gcp_vm_inventory.cli:main",
         ],
     },
 )
