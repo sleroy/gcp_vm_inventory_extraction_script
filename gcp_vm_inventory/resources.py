@@ -105,6 +105,16 @@ def get_bigquery_datasets(project_id, service_account_key=None):
         # Convert to a format similar to CLI output for compatibility
         result = []
         for dataset in datasets:
+            # DatasetListItem objects don't have a location attribute
+            # We need to get the full dataset to access the location
+            try:
+                dataset_ref = client.dataset(dataset.dataset_id)
+                full_dataset = client.get_dataset(dataset_ref)
+                location = full_dataset.location
+            except Exception as e:
+                print(f"Warning: Could not get location for dataset {dataset.dataset_id}: {str(e)}")
+                location = "unknown"
+                
             result.append({
                 'datasetReference': {
                     'datasetId': dataset.dataset_id,
@@ -112,7 +122,7 @@ def get_bigquery_datasets(project_id, service_account_key=None):
                 },
                 'id': f"{project_id}:{dataset.dataset_id}",
                 'kind': 'bigquery#dataset',
-                'location': dataset.location
+                'location': location
             })
         return result
     except Exception as e:
@@ -224,39 +234,74 @@ def extract_bigquery_info(project_id, service_account_key=None):
     """
     bq_info = []
     
-    # Get all datasets
-    datasets = get_bigquery_datasets(project_id, service_account_key)
-    if not datasets:
-        return bq_info
-    
-    for dataset in datasets:
-        dataset_id = dataset.get('datasetReference', {}).get('datasetId')
-        if not dataset_id:
-            continue
+    try:
+        # Get all datasets
+        datasets = get_bigquery_datasets(project_id, service_account_key)
+        if not datasets:
+            print(f"No BigQuery datasets found in project {project_id}")
+            return bq_info
         
-        # Get dataset details
-        dataset_info = get_bigquery_dataset_info(project_id, dataset_id, service_account_key)
-        if not dataset_info:
-            continue
+        print(f"Found {len(datasets)} datasets in project {project_id}")
         
-        # Get tables in the dataset
-        tables = get_bigquery_tables(project_id, dataset_id, service_account_key)
-        if not tables:
-            tables = []
+        client = get_bigquery_client(project_id, service_account_key)
+        if not client:
+            print(f"Could not create BigQuery client for project {project_id}")
+            return bq_info
         
-        # Calculate total storage
-        total_size_bytes = sum(table.get('numBytes', 0) for table in tables if 'numBytes' in table)
-        total_size_gb = round(total_size_bytes / (1024 * 1024 * 1024), 2) if total_size_bytes > 0 else 0
-        
-        bq_info.append({
-            'project_id': project_id,
-            'dataset_id': dataset_id,
-            'location': dataset_info.get('location', 'N/A'),
-            'creation_time': dataset_info.get('creationTime', 'N/A'),
-            'last_modified_time': dataset_info.get('lastModifiedTime', 'N/A'),
-            'table_count': len(tables),
-            'total_size_gb': total_size_gb
-        })
+        for dataset in datasets:
+            dataset_id = dataset.get('datasetReference', {}).get('datasetId')
+            if not dataset_id:
+                continue
+            
+            print(f"Processing dataset: {dataset_id}")
+            
+            # Get dataset details - we already have most of what we need from the datasets list
+            location = dataset.get('location', 'N/A')
+            
+            # Get tables in the dataset
+            try:
+                dataset_ref = client.dataset(dataset_id)
+                tables = list(client.list_tables(dataset_ref))
+                
+                # Calculate total storage
+                total_size_bytes = 0
+                table_count = len(tables)
+                
+                for table in tables:
+                    try:
+                        table_ref = client.get_table(table.reference)
+                        total_size_bytes += table_ref.num_bytes or 0
+                    except Exception as e:
+                        print(f"Warning: Could not get size for table {table.table_id}: {str(e)}")
+                
+                total_size_gb = round(total_size_bytes / (1024 * 1024 * 1024), 2) if total_size_bytes > 0 else 0
+                
+                # Get creation and modification times
+                try:
+                    full_dataset = client.get_dataset(dataset_ref)
+                    creation_time = full_dataset.created.timestamp() * 1000 if full_dataset.created else None
+                    last_modified_time = full_dataset.modified.timestamp() * 1000 if full_dataset.modified else None
+                except Exception as e:
+                    print(f"Warning: Could not get timestamps for dataset {dataset_id}: {str(e)}")
+                    creation_time = None
+                    last_modified_time = None
+                
+                bq_info.append({
+                    'project_id': project_id,
+                    'dataset_id': dataset_id,
+                    'location': location,
+                    'creation_time': creation_time,
+                    'last_modified_time': last_modified_time,
+                    'table_count': table_count,
+                    'total_size_gb': total_size_gb
+                })
+                
+                print(f"Added dataset {dataset_id} with {table_count} tables and {total_size_gb} GB")
+                
+            except Exception as e:
+                print(f"Error processing dataset {dataset_id}: {str(e)}")
+    except Exception as e:
+        print(f"Error extracting BigQuery info for project {project_id}: {str(e)}")
     
     return bq_info
 
@@ -374,8 +419,25 @@ def collect_bigquery_inventory(project_id=None, skip_disabled_apis=False, servic
         if project_id:
             # Process a single project
             print(f"Collecting BigQuery data for project: {project_id}")
-            bq_info = extract_bigquery_info(project_id, service_account_key)
-            all_bq_data.extend(bq_info)
+            try:
+                # First check if we can create a client - this will fail fast if there are permission issues
+                client = get_bigquery_client(project_id, service_account_key)
+                if not client:
+                    print(f"Could not create BigQuery client for project {project_id}")
+                    if not skip_disabled_apis:
+                        print(f"Skipping project {project_id} due to client creation failure")
+                    return all_bq_data
+                
+                # Now extract the BigQuery information
+                bq_info = extract_bigquery_info(project_id, service_account_key)
+                all_bq_data.extend(bq_info)
+                
+                if not bq_info:
+                    print(f"No BigQuery datasets found in project {project_id}")
+            except Exception as e:
+                print(f"Error collecting BigQuery data for project {project_id}: {str(e)}")
+                if not skip_disabled_apis:
+                    print(f"Skipping project {project_id} due to error")
         else:
             # Process all accessible projects
             projects = get_projects(service_account_key)
@@ -383,14 +445,34 @@ def collect_bigquery_inventory(project_id=None, skip_disabled_apis=False, servic
                 print("No projects found or unable to access project list.")
                 return []
             
+            print(f"Found {len(projects)} projects to check for BigQuery datasets")
+            
             for project in projects:
                 project_id = project.get('projectId')
                 print(f"\nCollecting BigQuery data for project: {project_id}")
-                bq_info = extract_bigquery_info(project_id, service_account_key)
-                all_bq_data.extend(bq_info)
+                try:
+                    # First check if we can create a client - this will fail fast if there are permission issues
+                    client = get_bigquery_client(project_id, service_account_key)
+                    if not client:
+                        print(f"Could not create BigQuery client for project {project_id}")
+                        if not skip_disabled_apis:
+                            print(f"Skipping project {project_id} due to client creation failure")
+                        continue
+                    
+                    # Now extract the BigQuery information
+                    bq_info = extract_bigquery_info(project_id, service_account_key)
+                    all_bq_data.extend(bq_info)
+                    
+                    if not bq_info:
+                        print(f"No BigQuery datasets found in project {project_id}")
+                except Exception as e:
+                    print(f"Error collecting BigQuery data for project {project_id}: {str(e)}")
+                    if not skip_disabled_apis:
+                        print(f"Skipping project {project_id} due to error")
     except Exception as e:
         print(f"Error collecting BigQuery inventory: {str(e)}")
     
+    print(f"Collected information for {len(all_bq_data)} BigQuery datasets across all projects")
     return all_bq_data
 
 

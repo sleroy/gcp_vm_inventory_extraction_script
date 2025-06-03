@@ -1,5 +1,15 @@
 # Change Log
 
+## [0.3.1] - 2025-06-03
+
+### BigQuery Inventory Fix
+
+- Fixed issue with BigQuery dataset detection
+- Improved error handling in BigQuery inventory collection
+- Enhanced logging for better troubleshooting
+- Added more robust dataset and table information retrieval
+- Optimized BigQuery client usage
+
 ## [0.3.0] - 2025-06-03
 
 ### Streamlit UI Feature
