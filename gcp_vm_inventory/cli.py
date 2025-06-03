@@ -10,7 +10,7 @@ import os
 import sys
 from .core import collect_vm_inventory, export_to_csv
 from .api_checker import check_apis_for_projects, display_api_status
-from .utils import check_gcloud_installed
+from .utils import check_gcloud_installed, display_disclaimer
 
 
 def main():
@@ -21,6 +21,11 @@ def main():
         print(error_message)
         sys.exit(1)
     
+    # Display disclaimer and get user agreement
+    if not display_disclaimer():
+        print("You must accept the disclaimer to use this tool. Exiting.")
+        sys.exit(1)
+    
     parser = argparse.ArgumentParser(description='Extract GCP VM inventory to CSV')
     parser.add_argument('--output-dir', default='output', help='Directory to store the CSV output')
     parser.add_argument('--project', help='Specific GCP project ID to inventory (optional)')
@@ -29,6 +34,8 @@ def main():
     parser.add_argument('--check-apis-only', action='store_true',
                       help='Only check API status without collecting VM inventory')
     parser.add_argument('--service-account-key', help='Path to service account key file (optional)')
+    parser.add_argument('--skip-disclaimer', action='store_true',
+                      help='Skip the disclaimer prompt (use with caution)')
     args = parser.parse_args()
     
     # Determine the output directory path
