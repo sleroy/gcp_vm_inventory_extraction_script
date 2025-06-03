@@ -1,0 +1,2 @@
+# No external dependencies required
+# The script uses standard Python libraries and the Google Cloud SDK
