@@ -5,6 +5,7 @@ This tool extracts information about virtual machines from Google Cloud Platform
 ## Features
 
 - Lists all VMs across all accessible GCP projects (or a specific project)
+- Checks for required API permissions before collecting data
 - Extracts key information including:
   - Project ID
   - VM ID and name
@@ -24,16 +25,24 @@ This tool extracts information about virtual machines from Google Cloud Platform
 
 ## Installation
 
+### From GitHub
+
 1. Clone this repository:
    ```
-   git clone <repository-url>
-   cd gcp-vm-inventory
+   git clone https://github.com/sleroy/gcp_vm_inventory_extraction_script.git
+   cd gcp_vm_inventory_extraction_script
    ```
 
 2. Make the script executable:
    ```
    chmod +x gcp_vm_inventory.py
    ```
+
+### Using pip (coming soon)
+
+```
+pip install gcp-vm-inventory
+```
 
 ## Usage
 
@@ -55,6 +64,18 @@ This tool extracts information about virtual machines from Google Cloud Platform
 ./gcp_vm_inventory.py --output-dir /path/to/output
 ```
 
+### Check API permissions only:
+
+```
+./gcp_vm_inventory.py --check-apis-only
+```
+
+### Skip projects with disabled APIs:
+
+```
+./gcp_vm_inventory.py --skip-disabled-apis
+```
+
 ## Output
 
 The script generates a CSV file with the following columns:
@@ -72,6 +93,10 @@ The script generates a CSV file with the following columns:
 - network: Network name
 - internal_ip: Internal IP address
 - external_ip: External IP address (if any)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 

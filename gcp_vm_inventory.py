@@ -11,11 +11,13 @@ import csv
 import json
 import os
 import subprocess
+import sys
 from datetime import datetime
+from api_checker import check_apis_for_projects, display_api_status
 
 
-def run_gcloud_command(command):
-    """Execute a gcloud command and return the output as JSON."""
+def run_gcloud_command(command, check_json=True, suppress_errors=False):
+    """Execute a gcloud command and return the output as JSON or text."""
     try:
         result = subprocess.run(
             command,
@@ -24,16 +26,28 @@ def run_gcloud_command(command):
             check=True,
             text=True
         )
-        return json.loads(result.stdout)
+        if check_json:
+            return json.loads(result.stdout)
+        else:
+            return result.stdout
     except subprocess.CalledProcessError as e:
-        print(f"Error executing command: {e}")
-        print(f"Error output: {e.stderr}")
+        if not suppress_errors:
+            print(f"Error executing command: {e}")
+            print(f"Error output: {e.stderr}")
+            
+            # Check for API not enabled error
+            if "API not enabled" in e.stderr or "API has not been used" in e.stderr:
+                print("\nNOTE: This error indicates that the Compute Engine API is not enabled for this project.")
+                print("You need to enable the API before you can access VM information.")
+                print("You can enable it by visiting the URL in the error message above.")
+                print("After enabling the API, wait a few minutes for the change to propagate before retrying.")
+        
         return None
 
 
 def get_projects():
     """Get a list of all accessible GCP projects."""
-    command = ["gcloud", "projects", "list", "--format=json"]
+    command = ["gcloud", "projects", "list", "--format=json", "--quiet"]
     return run_gcloud_command(command)
 
 
@@ -42,7 +56,8 @@ def get_vms_in_project(project_id):
     command = [
         "gcloud", "compute", "instances", "list",
         "--project", project_id,
-        "--format=json"
+        "--format=json",
+        "--quiet"  # Prevent interactive prompts
     ]
     return run_gcloud_command(command)
 
@@ -84,7 +99,8 @@ def get_machine_type_info(project_id, zone, machine_type):
         machine_type,
         "--project", project_id,
         "--zone", zone,
-        "--format=json"
+        "--format=json",
+        "--quiet"  # Prevent interactive prompts
     ]
     
     result = run_gcloud_command(command)
@@ -155,9 +171,33 @@ def main():
     parser = argparse.ArgumentParser(description='Extract GCP VM inventory to CSV')
     parser.add_argument('--output-dir', default='output', help='Directory to store the CSV output')
     parser.add_argument('--project', help='Specific GCP project ID to inventory (optional)')
+    parser.add_argument('--skip-disabled-apis', action='store_true', 
+                      help='Skip projects with disabled Compute Engine API instead of showing errors')
+    parser.add_argument('--check-apis-only', action='store_true',
+                      help='Only check API status without collecting VM inventory')
     args = parser.parse_args()
     
     output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), args.output_dir)
+    
+    # Check API status first
+    if args.project:
+        project_api_status = check_apis_for_projects(args.project)
+    else:
+        project_api_status = check_apis_for_projects()
+    
+    all_apis_ok = display_api_status(project_api_status)
+    
+    if args.check_apis_only:
+        print("\nAPI check completed. Exiting as requested.")
+        return
+    
+    if not all_apis_ok:
+        print("\nWARNING: Some required APIs are not enabled or have credential issues.")
+        print("You may encounter errors when collecting VM inventory.")
+        proceed = input("Do you want to proceed anyway? (y/n): ")
+        if proceed.lower() != 'y':
+            print("Exiting as requested.")
+            return
     
     all_vm_data = []
     
@@ -178,12 +218,16 @@ def main():
         
         for project in projects:
             project_id = project.get('projectId')
-            print(f"Collecting VM data for project: {project_id}")
+            print(f"\nCollecting VM data for project: {project_id}")
             vms = get_vms_in_project(project_id)
             if vms:
                 for vm in vms:
                     vm_info = extract_vm_info(vm, project_id)
                     all_vm_data.append(vm_info)
+            elif not args.skip_disabled_apis:
+                print(f"No VM data found for project: {project_id} or API access issue")
+            else:
+                print(f"Skipping project: {project_id} (possibly due to disabled API)")
     
     if all_vm_data:
         export_to_csv(all_vm_data, output_dir)

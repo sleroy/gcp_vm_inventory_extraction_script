@@ -1,5 +1,15 @@
 # Change Log
 
+## [0.2.0] - 2025-06-03
+
+### API Permission Check Feature
+
+- Added preliminary API permission check functionality
+- Implemented status display with color-coded indicators: API [OK], API [MISSING], API [CREDENTIAL_ISSUE]
+- Created separate module for API checking functionality
+- Added command-line option to only check APIs without collecting inventory
+- Added interactive prompt to proceed with inventory collection if API issues are detected
+
 ## [0.1.0] - 2025-06-03
 
 ### Initial Implementation
