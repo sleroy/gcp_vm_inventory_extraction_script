@@ -7,6 +7,7 @@ This tool extracts information about virtual machines from Google Cloud Platform
 ## Features
 
 - Lists all VMs across all accessible GCP projects (or a specific project)
+- Collects information about Cloud SQL instances, BigQuery datasets, and GKE clusters
 - Checks for required API permissions before collecting data
 - Provides both CLI and web-based UI options
 - Supports authentication via gcloud configuration or service account key
@@ -20,12 +21,68 @@ This tool extracts information about virtual machines from Google Cloud Platform
   - Network information
   - IP addresses
   - Creation timestamp
+  - SQL instance details and storage
+  - BigQuery dataset storage volumes
+  - GKE cluster information
 
 ## Prerequisites
 
 - Python 3.6+
 - Google Cloud SDK installed and configured
 - Appropriate permissions to access GCP projects and VM information
+
+## Required GCP Permissions
+
+To use this tool, you need the following permissions in your GCP environment:
+
+### For VM Inventory
+- `compute.instances.list` - To list VM instances
+- `compute.machineTypes.get` - To get machine type details
+
+### For Cloud SQL Inventory
+- `cloudsql.instances.list` - To list SQL instances
+
+### For BigQuery Inventory
+- `bigquery.datasets.get` - To get dataset information
+- `bigquery.datasets.list` - To list datasets
+- `bigquery.tables.list` - To list tables in datasets
+- `bigquery.tables.get` - To get table information
+
+### For GKE Inventory
+- `container.clusters.list` - To list GKE clusters
+
+### Recommended IAM Roles
+The following predefined IAM roles include the necessary permissions:
+
+- `roles/compute.viewer` - For VM inventory
+- `roles/cloudsql.viewer` - For Cloud SQL inventory
+- `roles/bigquery.dataViewer` - For BigQuery inventory
+- `roles/container.viewer` - For GKE inventory
+
+Alternatively, you can create a custom role with just the required permissions listed above.
+
+## Creating a Service Account Key
+
+To use this tool with a service account instead of your personal credentials:
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Navigate to "IAM & Admin" > "Service Accounts"
+3. Click "Create Service Account"
+4. Enter a name and description for the service account
+5. Click "Create and Continue"
+6. Assign the following roles:
+   - Compute Viewer
+   - Cloud SQL Viewer
+   - BigQuery Data Viewer
+   - Kubernetes Engine Viewer
+7. Click "Continue" and then "Done"
+8. Find your new service account in the list and click on it
+9. Go to the "Keys" tab
+10. Click "Add Key" > "Create new key"
+11. Choose "JSON" as the key type
+12. Click "Create" to download the key file
+
+Keep this key file secure and use it with the `--service-account-key` option or upload it in the Streamlit UI.
 
 ## Installation
 
@@ -100,17 +157,20 @@ gcp-vm-inventory --service-account-key /path/to/key.json
 3. Use the sidebar to configure:
    - Authentication method (current gcloud config or service account key)
    - Project selection (all projects or specific project)
+   - Resource types to collect (VMs, SQL, BigQuery, GKE)
    - Other options
 
 4. Click "Check APIs" to verify API permissions
-5. Click "Collect Inventory" to gather VM data
-6. Use the filtering options to narrow down results
-7. Export the data as CSV or Excel using the download links
+5. Click "Collect Inventory" to gather resource data
+6. Use the tabs to view different resource types
+7. Use the filtering options to narrow down results
+8. Export the data as CSV or Excel using the download links
 
 ## Output
 
 The tool generates data with the following fields:
 
+### VM Inventory
 - project_id: The GCP project identifier
 - vm_id: The unique identifier of the VM
 - name: The name of the VM
@@ -124,6 +184,61 @@ The tool generates data with the following fields:
 - network: Network name
 - internal_ip: Internal IP address
 - external_ip: External IP address (if any)
+
+### Cloud SQL Inventory
+- project_id: The GCP project identifier
+- instance_name: The name of the SQL instance
+- database_version: The database engine version
+- region: The region where the instance is located
+- tier: The machine type of the instance
+- storage_size_gb: Storage size in GB
+- storage_type: Type of storage (SSD, HDD)
+- availability_type: High availability configuration
+- state: Current state of the instance
+- creation_time: When the instance was created
+- public_ip: Public IP address (if any)
+- private_ip: Private IP address (if any)
+
+### BigQuery Inventory
+- project_id: The GCP project identifier
+- dataset_id: The BigQuery dataset ID
+- location: The location where the dataset is stored
+- creation_time: When the dataset was created
+- last_modified_time: When the dataset was last modified
+- table_count: Number of tables in the dataset
+- total_size_gb: Total storage size in GB
+
+### GKE Cluster Inventory
+- project_id: The GCP project identifier
+- cluster_name: The name of the GKE cluster
+- location: The location where the cluster is deployed
+- status: Current status of the cluster
+- kubernetes_version: The Kubernetes version
+- node_count: Number of nodes in the cluster
+- node_pools: Number of node pools
+- network: Network name
+- subnetwork: Subnetwork name
+- creation_time: When the cluster was created
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Missing gcloud command line tool**:
+   - Error: "The Google Cloud SDK (gcloud) command line tool is not installed or not in your PATH"
+   - Solution: Install the Google Cloud SDK from https://cloud.google.com/sdk/docs/install
+
+2. **API not enabled**:
+   - Error: "API [MISSING]" in the API status check
+   - Solution: Enable the required APIs in the Google Cloud Console or use `gcloud services enable [API_NAME]`
+
+3. **Permission denied**:
+   - Error: "API [CREDENTIAL_ISSUE]" in the API status check
+   - Solution: Ensure your account or service account has the necessary permissions listed above
+
+4. **BigQuery errors**:
+   - Error: Issues with BigQuery data collection
+   - Solution: Ensure the BigQuery API is enabled and you have the required permissions
 
 ## Contributing
 

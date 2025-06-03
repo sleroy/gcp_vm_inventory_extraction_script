@@ -10,10 +10,17 @@ import os
 import sys
 from .core import collect_vm_inventory, export_to_csv
 from .api_checker import check_apis_for_projects, display_api_status
+from .utils import check_gcloud_installed
 
 
 def main():
     """Main entry point for the CLI."""
+    # Check if gcloud is installed
+    is_gcloud_installed, error_message = check_gcloud_installed()
+    if not is_gcloud_installed:
+        print(error_message)
+        sys.exit(1)
+    
     parser = argparse.ArgumentParser(description='Extract GCP VM inventory to CSV')
     parser.add_argument('--output-dir', default='output', help='Directory to store the CSV output')
     parser.add_argument('--project', help='Specific GCP project ID to inventory (optional)')

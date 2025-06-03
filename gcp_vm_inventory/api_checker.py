@@ -22,6 +22,9 @@ def check_required_apis(project_id, service_account_key=None):
     """
     required_apis = {
         "compute.googleapis.com": "Compute Engine API",
+        "sqladmin.googleapis.com": "Cloud SQL Admin API",
+        "bigquery.googleapis.com": "BigQuery API",
+        "container.googleapis.com": "Kubernetes Engine API"
     }
     
     results = {}

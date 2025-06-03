@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 from datetime import datetime
+from .utils import check_gcloud_installed
 
 
 def run_gcloud_command(command, check_json=True, suppress_errors=False, service_account_key=None):
@@ -23,6 +24,13 @@ def run_gcloud_command(command, check_json=True, suppress_errors=False, service_
     Returns:
         Parsed JSON object or raw text output
     """
+    # Check if gcloud is installed
+    is_gcloud_installed, error_message = check_gcloud_installed()
+    if not is_gcloud_installed:
+        if not suppress_errors:
+            print(error_message)
+        return None
+    
     # If service account key is provided, add authentication
     if service_account_key:
         # Add authentication to the command
@@ -49,8 +57,23 @@ def run_gcloud_command(command, check_json=True, suppress_errors=False, service_
             check=True,
             text=True
         )
+        
+        # Check if output is empty
+        if not result.stdout or result.stdout.strip() == "":
+            if check_json:
+                return []
+            else:
+                return ""
+                
         if check_json:
-            return json.loads(result.stdout)
+            try:
+                return json.loads(result.stdout)
+            except json.JSONDecodeError as e:
+                if not suppress_errors:
+                    print(f"Warning: Command output is not valid JSON: {command}")
+                    print(f"Output: {result.stdout}")
+                    print(f"Error: {str(e)}")
+                return []
         else:
             return result.stdout
     except subprocess.CalledProcessError as e:
@@ -78,12 +101,7 @@ def get_organization_info(service_account_key=None):
         Dictionary with organization information or None if not available
     """
     command = ["gcloud", "organizations", "list", "--format=json", "--quiet"]
-    org_data = run_gcloud_command(command, service_account_key=service_account_key)
-    
-    if not org_data:
-        return None
-    
-    return org_data
+    return run_gcloud_command(command, service_account_key=service_account_key)
 
 
 def get_projects(service_account_key=None):
