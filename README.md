@@ -1,29 +1,62 @@
-# GCP VM Inventory Tool
+## Development
 
-This tool extracts information about virtual machines from Google Cloud Platform and exports the data to a CSV file. It provides both a command-line interface and a Streamlit web UI.
+### Running Tests
 
-![GCP VM Inventory Tool Screenshot](screenshot.png)
+The project uses pytest for testing. To run the tests:
 
-## Features
+```bash
+# Install test dependencies
+pip install -r requirements.txt
 
-- Lists all VMs across all accessible GCP projects (or a specific project)
-- Collects information about Cloud SQL instances, BigQuery datasets, and GKE clusters
-- Checks for required API permissions before collecting data
-- Provides both CLI and web-based UI options
-- Supports authentication via gcloud configuration or service account key
-- Extracts key information including:
-  - Project ID
-  - VM ID and name
-  - Operating system information
-  - Machine type
-  - CPU count and memory
-  - Zone
-  - Network information
-  - IP addresses
-  - Creation timestamp
-  - SQL instance details and storage
-  - BigQuery dataset storage volumes
-  - GKE cluster information
+# Run all tests with coverage report
+pytest
+
+# Run specific test file
+pytest tests/test_gcp_client.py
+
+# Run tests with more verbose output
+pytest -v
+
+# Run tests and generate HTML coverage report
+pytest --cov=gcp_vm_inventory --cov-report=html
+```
+
+The test suite includes:
+- Unit tests for the GCP client
+- Unit tests for VM inventory collection
+- Unit tests for BigQuery inventory collection
+
+### Project Structure
+
+```
+gcp-vm-inventory/
+├── gcp_vm_inventory/       # Main package
+│   ├── __init__.py
+│   ├── api_checker.py      # API permission checking
+│   ├── bigquery_inventory.py # BigQuery inventory collection
+│   ├── cli.py              # Command-line interface
+│   ├── core.py             # Core functionality (legacy)
+│   ├── gcp_client.py       # GCP client abstraction
+│   ├── inventory_service.py # Unified inventory service
+│   ├── models.py           # Data models
+│   ├── resources.py        # Resource collection (legacy)
+│   ├── streamlit_app.py    # Streamlit web UI
+│   ├── utils.py            # Utility functions
+│   └── vm_inventory.py     # VM inventory collection
+├── tests/                  # Test package
+│   ├── __init__.py
+│   ├── test_bigquery_inventory.py
+│   ├── test_gcp_client.py
+│   └── test_vm_inventory.py
+├── output/                 # Default output directory
+├── .coveragerc             # Coverage configuration
+├── CHANGES.md              # Change log
+├── DISCLAIMER.md           # Legal disclaimer
+├── LICENSE                 # License file
+├── pytest.ini              # Pytest configuration
+├── README.md               # This file
+├── requirements.txt        # Dependencies
+└── setup.py                # Package setup
 
 ## Prerequisites
 
