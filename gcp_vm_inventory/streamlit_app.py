@@ -467,6 +467,44 @@ def main():
                     # Display the filtered DataFrame
                     st.dataframe(bq_df)
                     
+                    # Add visualization for BigQuery storage
+                    st.subheader("BigQuery Storage Visualization")
+                    
+                    # Create a dataframe for visualization
+                    if len(bq_df) > 0:
+                        # Group by project and sum the total storage
+                        project_storage = bq_df.groupby('project_id')['total_size_gb'].sum().reset_index()
+                        project_storage = project_storage.sort_values('total_size_gb', ascending=False)
+                        
+                        # Create bar chart
+                        st.bar_chart(
+                            project_storage.set_index('project_id')['total_size_gb'],
+                            use_container_width=True
+                        )
+                        
+                        # Add dataset-level visualization if there are multiple datasets
+                        if len(bq_df) > 1:
+                            st.subheader("Storage by Dataset")
+                            # Sort datasets by size
+                            dataset_storage = bq_df.sort_values('total_size_gb', ascending=False)
+                            # Create a unique identifier combining project and dataset
+                            dataset_storage['dataset_label'] = dataset_storage['project_id'] + ':' + dataset_storage['dataset_id']
+                            # Limit to top 15 datasets to keep chart readable
+                            if len(dataset_storage) > 15:
+                                st.info("Showing top 15 datasets by storage size")
+                                dataset_storage = dataset_storage.head(15)
+                            
+                            st.bar_chart(
+                                dataset_storage.set_index('dataset_label')['total_size_gb'],
+                                use_container_width=True
+                            )
+                            
+                        # Add summary statistics
+                        col1, col2, col3 = st.columns(3)
+                        col1.metric("Total Storage (GB)", f"{bq_df['total_size_gb'].sum():.2f}")
+                        col2.metric("Total Datasets", f"{len(bq_df)}")
+                        col3.metric("Total Tables", f"{bq_df['table_count'].sum()}")
+                    
                     # Export options
                     st.subheader("Export Options")
                     col1, col2 = st.columns(2)
